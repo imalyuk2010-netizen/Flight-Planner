@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flight Planner — VFR Cross-Country</title>
+  <meta name="description" content="VFR cross-country flight planning aid: great-circle route, wind triangle, fuel and FAR reserves, live METAR/TAF, winds aloft, and alternates.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+        integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lenis@1.3.4/dist/lenis.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+
+<header class="topbar">
+  <a class="brand" href="#top" data-scroll-to="#top" aria-label="Flight Planner — back to top">
+    <span class="brand-mark" aria-hidden="true">✈</span>
+    <div>
+      <p class="brand-name">Flight Planner</p>
+      <p class="brand-sub">VFR cross-country planning aid</p>
+    </div>
+  </a>
+  <nav class="topnav" aria-label="Sections">
+    <a href="#how" data-scroll-to="#how">How it works</a>
+    <a href="#planner" data-scroll-to="#planner" class="topnav-cta">Plan a flight</a>
+  </nav>
+  <div class="data-status" id="dataStatus" role="status" aria-live="polite">Loading airport database…</div>
+</header>
+
+<!-- ================= HERO ================= -->
+<section class="hero" id="top">
+  <svg class="hero-path" data-speed="0.18" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="trail" x1="0" x2="1">
+        <stop offset="0" stop-color="#56ccf2" stop-opacity="0"/>
+        <stop offset="1" stop-color="#56ccf2" stop-opacity=".9"/>
+      </linearGradient>
+    </defs>
+    <path d="M-40 560 C 260 520, 380 180, 700 250 S 1040 120, 1260 60" fill="none" stroke="url(#trail)" stroke-width="2" stroke-dasharray="3 9" stroke-linecap="round"/>
+    <circle cx="700" cy="250" r="5" fill="#56ccf2"/>
+    <circle cx="1040" cy="150" r="3.5" fill="#56ccf2" opacity=".6"/>
+    <circle cx="260" cy="470" r="3.5" fill="#56ccf2" opacity=".6"/>
+  </svg>
+  <div class="hero-inner" data-speed="-0.12">
+    <p class="eyebrow reveal">Training aid · Not for navigation</p>
+    <h1 class="hero-title">
+      <span class="line"><span class="line-in">Plan the cross-country</span></span>
+      <span class="line"><span class="line-in">the way you were taught.</span></span>
+    </h1>
+    <p class="hero-sub reveal" style="--d:.5s">Great-circle course, wind triangle, fuel and FAR reserves, live METAR/TAF and alternates — with the math shown, so you can check it against your E6B.</p>
+    <div class="hero-actions reveal" style="--d:.65s">
+      <a class="btn-hero" href="#planner" data-scroll-to="#planner">Start planning</a>
+      <a class="btn-link" href="#how" data-scroll-to="#how">How it works</a>
+    </div>
+  </div>
+  <div class="scroll-cue" aria-hidden="true"><span>Scroll</span><i></i></div>
+</section>
+
+<!-- ================= HOW IT WORKS ================= -->
+<section class="how" id="how">
+  <div class="how-head">
+    <p class="eyebrow reveal">What you get</p>
+    <h2 class="how-title reveal">Every number on the nav log, with the formula beside it.</h2>
+  </div>
+  <div class="how-grid">
+    <article class="how-card reveal" style="--d:0s">
+      <span class="how-num">01</span>
+      <h3>Wind triangle</h3>
+      <p>True course, wind correction angle, heading and ground speed from a forecast at the route midpoint — or winds you enter yourself.</p>
+    </article>
+    <article class="how-card reveal" style="--d:.1s">
+      <span class="how-num">02</span>
+      <h3>Fuel &amp; reserves</h3>
+      <p>Trip fuel plus 14 CFR 91.151 / 91.167 reserves, and a plain GO, TIGHT or NO-GO verdict against fuel on board.</p>
+    </article>
+    <article class="how-card reveal" style="--d:.2s">
+      <span class="how-num">03</span>
+      <h3>Weather &amp; alternates</h3>
+      <p>Decoded METAR and TAF for both airports, a VFR cruising-altitude check, and alternates within 25 NM of your route.</p>
+    </article>
+  </div>
+</section>
+
+<div id="globalAlert" class="alert alert-error global-alert" hidden></div>
+
+<!-- ================= PLANNER: one full page per input ================= -->
+<form id="planForm" class="steps" novalidate autocomplete="off">
+
+  <section class="step" id="planner" data-label="Departure">
+    <div class="step-inner">
+      <p class="step-count"></p>
+      <h2 class="step-q">Where are you departing from?</h2>
+      <div class="field autocomplete">
+        <label for="dep" class="sr-only">Departure</label>
+        <input id="dep" type="text" placeholder="KSMF" spellcheck="false" aria-autocomplete="list" aria-controls="depList" aria-expanded="false">
+        <ul class="suggestions" id="depList" role="listbox" data-lenis-prevent hidden></ul>
+        <div class="hint" id="depHint">Type an ICAO code, airport name, or city — at least 2 characters</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" data-label="Destination">
+    <div class="step-inner">
+      <p class="step-count"></p>
+      <h2 class="step-q">Where are you headed?</h2>
+      <div class="field autocomplete">
+        <label for="dest" class="sr-only">Destination</label>
+        <input id="dest" type="text" placeholder="KOAK" spellcheck="false" aria-autocomplete="list" aria-controls="destList" aria-expanded="false">
+        <ul class="suggestions" id="destList" role="listbox" data-lenis-prevent hidden></ul>
+        <div class="hint" id="destHint">Type at least 2 characters</div>
+      </div>
+      <button type="button" class="btn-ghost" id="swapBtn" title="Swap departure and destination">⇄ Swap departure and destination</button>
+    </div>
+  </section>
+
+  <section class="step" data-label="Aircraft">
+    <div class="step-inner">
+      <p class="step-count"></p>
+      <h2 class="step-q">What are you flying?</h2>
+      <div class="field">
+        <label for="aircraft" class="sr-only">Aircraft type</label>
+        <select id="aircraft" disabled><option>Loading…</option></select>
+        <div class="hint hint-warn">Approximate planning values — not POH/AFM data.</div>
+      </div>
+      <div id="aircraftSpecs" class="specs" hidden></div>
+      <div id="customFields" class="custom-grid" hidden>
+        <div class="field"><label for="customKtas">Cruise KTAS @ 8,000 ft</label><input id="customKtas" type="number" min="1" step="1" placeholder="110"></div>
+        <div class="field"><label for="customGph">Burn (gph)</label><input id="customGph" type="number" min="0.1" step="0.1" placeholder="8.5"></div>
+        <div class="field"><label for="customUsable">Usable fuel (gal)</label><input id="customUsable" type="number" min="1" step="0.5" placeholder="48"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" data-label="Fuel">
+    <div class="step-inner">
+      <p class="step-count"></p>
+      <h2 class="step-q">How much fuel is on board?</h2>
+      <div class="field">
+        <label for="fuelOnBoard">Usable fuel on board (gal)</label>
+        <input id="fuelOnBoard" type="number" min="0" step="0.5" placeholder="Auto-filled from aircraft">
+        <div class="hint">Defaults to the aircraft's full usable fuel. Lower it if you're not topping off.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" data-label="Altitude">
+    <div class="step-inner">
+      <p class="step-count"></p>
+      <h2 class="step-q">How high will you cruise?</h2>
+      <div class="field">
+        <label for="altitude">Planned cruise altitude (ft MSL)</label>
+        <input id="altitude" type="number" min="500" max="17500" step="500" value="5500">
+        <div class="hint">Checked against the VFR hemispheric rule, 14 CFR 91.159.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" data-label="Time of day">
+    <div class="step-inner">
+      <p class="step-count"></p>
+      <h2 class="step-q">Day or night?</h2>
+      <fieldset class="field seg" id="dayNight">
+        <legend class="sr-only">Time of day</legend>
+        <label><input type="radio" name="dayNight" value="day" checked><span>Day</span></label>
+        <label><input type="radio" name="dayNight" value="night"><span>Night</span></label>
+      </fieldset>
+      <div class="hint">Sets the VFR fuel reserve: 30 minutes by day, 45 at night.</div>
+    </div>
+  </section>
+
+  <section class="step" data-label="Flight rules">
+    <div class="step-inner">
+      <p class="step-count"></p>
+      <h2 class="step-q">VFR or IFR?</h2>
+      <fieldset class="field seg" id="rules">
+        <legend class="sr-only">Flight rules</legend>
+        <label><input type="radio" name="rules" value="VFR" checked><span>VFR</span></label>
+        <label><input type="radio" name="rules" value="IFR"><span>IFR</span></label>
+      </fieldset>
+      <div class="hint">IFR requires a 45-minute reserve under 14 CFR 91.167.</div>
+    </div>
+  </section>
+
+  <section class="step" data-label="Fuel price">
+    <div class="step-inner">
+      <p class="step-count"></p>
+      <h2 class="step-q">What is fuel costing you?</h2>
+      <div class="field">
+        <label for="fuelPrice">Fuel price ($ per gallon)</label>
+        <input id="fuelPrice" type="number" min="0" step="0.01" value="6.50">
+      </div>
+    </div>
+  </section>
+
+  <section class="step" data-label="Winds aloft">
+    <div class="step-inner">
+      <p class="step-count"></p>
+      <h2 class="step-q">Where do the winds come from?</h2>
+      <fieldset class="field seg" id="windSource">
+        <legend class="sr-only">Wind source</legend>
+        <label><input type="radio" name="windSource" value="forecast" checked><span>Forecast</span></label>
+        <label><input type="radio" name="windSource" value="manual"><span>Manual</span></label>
+      </fieldset>
+      <div class="hint" id="windSourceHint">Open-Meteo forecast at the route midpoint, nearest pressure level to your altitude.</div>
+      <div id="manualWind" class="custom-grid" hidden>
+        <div class="field"><label for="windDir">Wind from (° true)</label><input id="windDir" type="number" min="0" max="360" step="1" value="0"></div>
+        <div class="field"><label for="windSpeed">Speed (kt)</label><input id="windSpeed" type="number" min="0" step="1" value="0"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step step-last" data-label="Plan">
+    <div class="step-inner">
+      <p class="step-count"></p>
+      <h2 class="step-q">Ready for takeoff?</h2>
+      <button type="submit" class="btn-primary" id="planBtn" disabled>Plan flight</button>
+      <div id="formError" class="alert alert-error" role="alert" hidden></div>
+    </div>
+  </section>
+</form>
+
+<nav class="step-dots" id="stepDots" aria-label="Form steps"></nav>
+
+<main class="results-wrap">
+  <!-- ================= RESULTS ================= -->
+  <section class="results" id="results">
+    <div class="map-wrap">
+      <div id="map" role="img" aria-label="Route map"></div>
+      <div id="mapFallback" class="map-fallback" hidden></div>
+    </div>
+
+    <div id="emptyState" class="empty">
+      <p class="empty-title">Enter a departure and destination to plan a flight.</p>
+      <p>You'll get the great-circle distance and course, a wind-corrected heading and ground speed, time enroute, fuel with FAR reserves, current METAR/TAF, and nearby alternates.</p>
+    </div>
+
+    <div id="planOutput" hidden>
+      <div id="planNotice" class="alert alert-warn" hidden></div>
+      <div class="cards" id="cards"></div>
+      <div class="two-up">
+        <div id="fuelVerdict" class="card"></div>
+        <div id="altitudeCheck" class="card"></div>
+      </div>
+      <div id="windInfo" class="card"></div>
+
+      <h2 class="section-title">Weather</h2>
+      <div class="wx-grid" id="weather"></div>
+
+      <h2 class="section-title">Alternates <span class="muted">— within 25 NM of route, runway ≥ 2,500 ft, nearest to destination first</span></h2>
+      <div id="alternates" class="card"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <p><strong>Disclaimer:</strong> This is a training and planning aid, <strong>not for actual navigation</strong>. Performance figures are approximate planning values, not POH data. Always verify with official sources, current charts, a standard weather briefing, and your aircraft's POH before any flight.</p>
+  <p class="muted">Data: <a href="https://ourairports.com/data/" target="_blank" rel="noopener">OurAirports</a> (public domain) · <a href="https://aviationweather.gov/" target="_blank" rel="noopener">NOAA Aviation Weather Center</a> · <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (CC BY 4.0) · Map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"
+        integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.4/dist/lenis.min.js"></script>
+<script type="module" src="js/scroll.js"></script>
+<script type="module" src="js/ui.js"></script>
+</body>
+</html>
