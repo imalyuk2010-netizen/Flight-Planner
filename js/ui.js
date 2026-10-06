@@ -200,7 +200,6 @@ function readForm() {
   if (!(fuelPrice >= 0)) errors.push('Enter a fuel price (0 or more).');
 
   const dayNight = el.form.querySelector('input[name="dayNight"]:checked').value;
-  const rules = el.form.querySelector('input[name="rules"]:checked').value;
   const windSource = el.form.querySelector('input[name="windSource"]:checked').value;
   let manualWind = null;
   if (windSource === 'manual') {
@@ -211,7 +210,7 @@ function readForm() {
     manualWind = { dir, speed: spd };
   }
 
-  return { errors, dep, dest, aircraft, fuelOnBoard, altitude, fuelPrice, dayNight, rules, windSource, manualWind };
+  return { errors, dep, dest, aircraft, fuelOnBoard, altitude, fuelPrice, dayNight, windSource, manualWind };
 }
 
 // ---------- rendering ----------
@@ -220,15 +219,15 @@ function statCard(label, value, unit, sub) {
 }
 
 function renderPlan(p, wind, wt) {
-  const { dep, dest, aircraft, altitude, fuelOnBoard, fuelPrice, dayNight, rules } = p;
+  const { dep, dest, aircraft, altitude, fuelOnBoard, fuelPrice, dayNight } = p;
   const distance = haversineNM(dep.lat, dep.lon, dest.lat, dest.lon);
   const tc = initialBearing(dep.lat, dep.lon, dest.lat, dest.lon);
   const tas = tasAtAltitude(aircraft.cruise_ktas_8000, altitude);
 
   const hours = timeEnrouteHours(distance, wt.groundSpeed);
   const trip = tripFuelGal(hours, aircraft.burn_gph);
-  const resMin = reserveMinutes(rules, dayNight);
-  const reserve = reserveFuelGal(rules, dayNight, aircraft.burn_gph);
+  const resMin = reserveMinutes(dayNight);
+  const reserve = reserveFuelGal(dayNight, aircraft.burn_gph);
   const verdict = fuelVerdict({ tripGal: trip, reserveGal: reserve, usableGal: fuelOnBoard, gph: aircraft.burn_gph });
   const cost = trip * fuelPrice;
 
@@ -248,7 +247,7 @@ function renderPlan(p, wind, wt) {
   el.fuelVerdict.innerHTML =
     `<h3>Fuel &amp; reserves <span class="verdict ${v}">${v}</span></h3>` +
     `<div class="row"><span>Trip fuel (incl. taxi)</span><span>${fmt(trip, 1)} gal</span></div>` +
-    `<div class="row"><span>Legal reserve — ${rules} ${rules === 'VFR' ? dayNight : ''} (${resMin} min @ ${aircraft.burn_gph} gph)</span><span>${fmt(reserve, 1)} gal</span></div>` +
+    `<div class="row"><span>Legal reserve — VFR ${dayNight} (${resMin} min @ ${aircraft.burn_gph} gph)</span><span>${fmt(reserve, 1)} gal</span></div>` +
     `<div class="row"><span><strong>Required total</strong></span><span><strong>${fmt(verdict.requiredGal, 1)} gal</strong></span></div>` +
     `<div class="row"><span>Usable fuel on board</span><span>${fmt(fuelOnBoard, 1)} gal</span></div>` +
     `<div class="row"><span>Margin beyond legal reserve</span><span>${verdict.marginGal >= 0 ? '' : '−'}${fmt(Math.abs(verdict.marginGal), 1)} gal (${verdict.marginMin >= 0 ? '' : '−'}${fmt(Math.abs(verdict.marginMin))} min)</span></div>` +
@@ -256,7 +255,7 @@ function renderPlan(p, wind, wt) {
       v === 'NO-GO' ? 'Required fuel exceeds usable fuel on board. Add fuel, plan a fuel stop, or choose a different aircraft.'
       : v === 'TIGHT' ? 'Legal, but with less than 30 extra minutes beyond the FAR minimum. Consider a fuel stop; headwinds or a diversion could consume the margin.'
       : 'At least 30 extra minutes beyond the FAR minimum reserve.'
-    } Reserves per 14 CFR ${rules === 'IFR' ? '91.167 (45 min; alternate leg not included)' : `91.151 (${dayNight === 'night' ? '45 min night' : '30 min day'})`}.</p>`;
+    } Reserves per 14 CFR 91.151 (${dayNight === 'night' ? '45 min night' : '30 min day'}).</p>`;
 
   // Altitude check
   const ac = vfrAltitudeCheck(tc, altitude);

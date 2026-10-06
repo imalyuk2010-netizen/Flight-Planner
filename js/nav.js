@@ -169,17 +169,14 @@ export function tripFuelGal(hours, gph, taxiGal = TAXI_RUNUP_GAL) {
 }
 
 /**
- * Required reserve in minutes, per FAR.
- *   14 CFR 91.151 (VFR): day 30 min, night 45 min.
- *   14 CFR 91.167 (IFR): 45 min (after flying to the alternate; alternate leg not modeled here).
+ * Required VFR fuel reserve in minutes, per 14 CFR 91.151: day 30 min, night 45 min.
  */
-export function reserveMinutes(flightRules, dayNight) {
-  if (flightRules === 'IFR') return 45;
+export function reserveMinutes(dayNight) {
   return dayNight === 'night' ? 45 : 30;
 }
 
-export function reserveFuelGal(flightRules, dayNight, gph) {
-  return (reserveMinutes(flightRules, dayNight) / 60) * gph;
+export function reserveFuelGal(dayNight, gph) {
+  return (reserveMinutes(dayNight) / 60) * gph;
 }
 
 /**

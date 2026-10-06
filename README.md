@@ -18,7 +18,7 @@ Enter a departure, a destination, an aircraft, an altitude, and fuel on board. F
 | **Wind correction angle, true heading, ground speed** | Wind triangle: `θ = wind dir − TC`, `WCA = asin(W·sin θ / TAS)`, `TH = TC + WCA`, `GS = TAS·cos WCA − W·cos θ`. If the crosswind component exceeds TAS the app says so instead of returning NaN. |
 | **Time enroute** | `distance / ground speed` |
 | **Fuel required** | `time × gph + 1.2 gal` taxi/run-up allowance |
-| **Legal reserve** | 14 CFR 91.151: VFR day 30 min, VFR night 45 min · 14 CFR 91.167: IFR 45 min — at cruise burn |
+| **Legal reserve** | 14 CFR 91.151: VFR day 30 min, VFR night 45 min — at cruise burn |
 | **GO / TIGHT / NO-GO** | NO-GO if trip + reserve > usable fuel on board · TIGHT if legal but < 30 extra minutes beyond the reserve · GO otherwise |
 | **VFR cruising altitude check** | 14 CFR 91.159: course 0–179° → odd thousands + 500; 180–359° → even thousands + 500. Flags a non-standard altitude and suggests the nearest legal ones. Uses **true** course as an approximation for **magnetic** course — the app says so. |
 | **Fuel cost** | trip fuel × price per gallon (default $6.50, editable) |
@@ -91,7 +91,7 @@ Aircraft figures in `data/aircraft.json` are approximate planning values compile
 
 - NOAA returns **HTTP 204 with an empty body** for an unknown station; the app treats that as "not a reporting station."
 - NOAA sends no CORS headers, so the browser calls the same-origin `/api/wx` proxy first and only falls back to a direct request if the proxy is unavailable.
-- The 14 CFR 91.167 IFR reserve is 45 minutes *after* flying to the alternate; the alternate leg itself is not modeled here.
+- This is a VFR-only planner: IFR rules (91.167 reserves, IFR altitudes, alternate requirements) are intentionally not modeled.
 
 ## Deploying (GitHub + Vercel)
 

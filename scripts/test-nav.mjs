@@ -106,11 +106,9 @@ check('Fuel: 2.0 h × 9.5 gph + 1.2 taxi = 20.2 gal', () => {
   assert.ok(near(tripFuelGal(2, 9.5), 20.2, 1e-9));
   return 'ok';
 });
-check('Reserves: VFR day 30, VFR night 45, IFR 45', () => {
-  assert.equal(reserveMinutes('VFR', 'day'), 30);
-  assert.equal(reserveMinutes('VFR', 'night'), 45);
-  assert.equal(reserveMinutes('IFR', 'day'), 45);
-  assert.equal(reserveMinutes('IFR', 'night'), 45);
+check('Reserves: VFR day 30, VFR night 45', () => {
+  assert.equal(reserveMinutes('day'), 30);
+  assert.equal(reserveMinutes('night'), 45);
   return 'ok';
 });
 check('Verdicts: GO / TIGHT / NO-GO', () => {
