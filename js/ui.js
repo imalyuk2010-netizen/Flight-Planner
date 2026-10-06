@@ -328,13 +328,74 @@ function renderAlternates(alts, dest, metars) {
 // ---------- full-screen TIGHT / NO-GO alert ----------
 const va = {
   root: $('verdictAlert'), route: $('vaRoute'), title: $('vaTitle'), text: $('vaText'), stats: $('vaStats'),
-  review: $('vaReview'), change: $('vaChange'),
+  review: $('vaReview'), change: $('vaChange'), sound: $('vaSound'),
 };
 let vaReturnFocus = null;
+
+// ---- warning sound (synthesized with Web Audio — no audio files) ----
+const sound = { ctx: null, master: null, muted: false };
+try { sound.muted = localStorage.getItem('fp-muted') === '1'; } catch { /* storage unavailable */ }
+
+// Browsers only allow audio after a user gesture; the Plan click/keypress unlocks it.
+function unlockAudio() {
+  try {
+    if (!sound.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      sound.ctx = new AC();
+      sound.master = sound.ctx.createGain();
+      sound.master.gain.value = 0.22;
+      sound.master.connect(sound.ctx.destination);
+    }
+    if (sound.ctx.state === 'suspended') sound.ctx.resume();
+  } catch { /* audio unsupported */ }
+}
+['pointerdown', 'keydown', 'touchstart'].forEach((t) => document.addEventListener(t, unlockAudio, { passive: true }));
+
+function stopAlarm() {
+  if (!sound.master) return;
+  const g = sound.master.gain, t = sound.ctx.currentTime;
+  g.cancelScheduledValues(t);
+  g.setTargetAtTime(0, t, 0.03);
+  setTimeout(() => { if (sound.master) sound.master.gain.value = 0.22; }, 400);
+  (sound.nodes || []).forEach((o) => { try { o.stop(t + 0.15); } catch { /* already stopped */ } });
+  sound.nodes = [];
+}
+
+function beep(freq, start, dur, type) {
+  const o = sound.ctx.createOscillator(), g = sound.ctx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0, start);
+  g.gain.linearRampToValueAtTime(1, start + 0.02);
+  g.gain.setValueAtTime(1, start + dur - 0.03);
+  g.gain.linearRampToValueAtTime(0, start + dur);
+  o.connect(g); g.connect(sound.master);
+  o.start(start); o.stop(start + dur + 0.02);
+  (sound.nodes ||= []).push(o);
+}
+
+function playAlarm(nogo) {
+  if (sound.muted || !sound.ctx || sound.ctx.state !== 'running') return;
+  stopAlarm();
+  const t0 = sound.ctx.currentTime + 0.05;
+  if (nogo) {
+    // Urgent two-tone siren, ~3 s.
+    for (let i = 0; i < 10; i++) beep(i % 2 ? 640 : 960, t0 + i * 0.3, 0.28, 'sawtooth');
+  } else {
+    // Caution: two double-beeps.
+    for (let r = 0; r < 2; r++) for (let i = 0; i < 2; i++) beep(740, t0 + r * 0.9 + i * 0.28, 0.2, 'triangle');
+  }
+}
+
+function renderSoundToggle() {
+  va.sound.textContent = sound.muted ? '🔇 Sound off' : '🔊 Sound on';
+  va.sound.setAttribute('aria-pressed', String(sound.muted));
+}
 
 function closeVerdictAlert() {
   if (va.root.hidden) return;
   va.root.hidden = true;
+  stopAlarm();
   document.body.classList.remove('va-open');
   if (window.lenis) window.lenis.start();
   if (vaReturnFocus?.focus) vaReturnFocus.focus({ preventScroll: true });
@@ -360,8 +421,16 @@ function showVerdictAlert(v, d) {
   document.body.classList.add('va-open');
   if (window.lenis) window.lenis.stop();
   va.review.focus({ preventScroll: true });
+  renderSoundToggle();
+  playAlarm(nogo);
 }
 
+va.sound.addEventListener('click', () => {
+  sound.muted = !sound.muted;
+  try { localStorage.setItem('fp-muted', sound.muted ? '1' : '0'); } catch { /* storage unavailable */ }
+  if (sound.muted) stopAlarm();
+  renderSoundToggle();
+});
 va.review.addEventListener('click', closeVerdictAlert);
 va.change.addEventListener('click', () => {
   closeVerdictAlert();
@@ -373,7 +442,7 @@ document.addEventListener('keydown', (e) => {
   if (va.root.hidden) return;
   if (e.key === 'Escape') { e.preventDefault(); closeVerdictAlert(); }
   else if (e.key === 'Tab') {
-    const f = [va.review, va.change];
+    const f = [va.review, va.change, va.sound];
     const i = f.indexOf(document.activeElement);
     e.preventDefault();
     f[(i + (e.shiftKey ? -1 : 1) + f.length) % f.length].focus();

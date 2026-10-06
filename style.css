@@ -418,3 +418,11 @@ body.va-open { overflow: hidden; }
 @keyframes va-shake { 0%, 100% { transform: none; } 20% { transform: translateX(-10px); } 40% { transform: translateX(9px); } 60% { transform: translateX(-6px); } 80% { transform: translateX(4px); } }
 @media (max-width: 700px) { .va-hazard { height: 18px; } .va-stats div { min-width: 120px; padding: 10px 12px; } .va-stats dd { font-size: 22px; } }
 @media (prefers-reduced-motion: reduce) { .verdict-alert, .va-title { animation: none; } .verdict-alert::after { animation: none; opacity: .6; } }
+
+.va-sound {
+  position: absolute; top: 44px; right: 20px; z-index: 2; padding: 8px 14px; border-radius: 999px; font-size: 14px; font-weight: 700;
+  color: inherit; background: rgba(0, 0, 0, .18); border: 2px solid rgba(var(--va-edge), .4);
+}
+.va-tight .va-sound { background: rgba(255, 255, 255, .35); }
+.va-sound:hover { background: rgba(0, 0, 0, .3); }
+.va-sound:focus-visible { outline: 4px solid rgba(var(--va-edge), .9); outline-offset: 3px; }
