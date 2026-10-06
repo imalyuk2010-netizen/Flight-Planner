@@ -243,6 +243,7 @@ function renderPlan(p, wind, wt) {
 
   // Fuel verdict
   const v = verdict.verdict;
+  showVerdictAlert(v, { verdict, trip, reserve, fuelOnBoard, dep, dest });
   el.fuelVerdict.className = `card v-${v}`;
   el.fuelVerdict.innerHTML =
     `<h3>Fuel &amp; reserves <span class="verdict ${v}">${v}</span></h3>` +
@@ -323,6 +324,61 @@ function renderAlternates(alts, dest, metars) {
   el.alternates.innerHTML =
     `<div class="alt-table-wrap"><table class="alt-table"><thead><tr><th>Airport</th><th>Longest rwy</th><th>From dest.</th><th>Off route</th><th>Current METAR (top 3)</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
 }
+
+// ---------- full-screen TIGHT / NO-GO alert ----------
+const va = {
+  root: $('verdictAlert'), route: $('vaRoute'), title: $('vaTitle'), text: $('vaText'), stats: $('vaStats'),
+  review: $('vaReview'), change: $('vaChange'),
+};
+let vaReturnFocus = null;
+
+function closeVerdictAlert() {
+  if (va.root.hidden) return;
+  va.root.hidden = true;
+  document.body.classList.remove('va-open');
+  if (window.lenis) window.lenis.start();
+  if (vaReturnFocus?.focus) vaReturnFocus.focus({ preventScroll: true });
+}
+
+function showVerdictAlert(v, d) {
+  if (v !== 'NO-GO' && v !== 'TIGHT') { closeVerdictAlert(); return; }
+  const { verdict, trip, reserve, fuelOnBoard, dep, dest } = d;
+  const nogo = v === 'NO-GO';
+  va.root.className = `verdict-alert ${nogo ? 'va-nogo' : 'va-tight'}`;
+  va.route.textContent = `${dep.ident} → ${dest.ident}`;
+  va.title.textContent = nogo ? 'NO-GO' : 'TIGHT';
+  va.text.textContent = nogo
+    ? `You do not have enough fuel for this flight. Short by ${fmt(Math.abs(verdict.marginGal), 1)} gal (${fmt(Math.abs(verdict.marginMin))} min) once the legal reserve is included.`
+    : `Legal, but only ${fmt(verdict.marginMin)} minutes of extra fuel (${fmt(verdict.marginGal, 1)} gal) beyond the legal reserve. A headwind or a diversion could use it up.`;
+  va.stats.innerHTML =
+    `<div><dt>Trip fuel</dt><dd>${fmt(trip, 1)} gal</dd></div>` +
+    `<div><dt>Legal reserve</dt><dd>${fmt(reserve, 1)} gal</dd></div>` +
+    `<div><dt>Required</dt><dd>${fmt(verdict.requiredGal, 1)} gal</dd></div>` +
+    `<div><dt>On board</dt><dd>${fmt(fuelOnBoard, 1)} gal</dd></div>`;
+  if (va.root.hidden) vaReturnFocus = document.activeElement;
+  va.root.hidden = false;
+  document.body.classList.add('va-open');
+  if (window.lenis) window.lenis.stop();
+  va.review.focus({ preventScroll: true });
+}
+
+va.review.addEventListener('click', closeVerdictAlert);
+va.change.addEventListener('click', () => {
+  closeVerdictAlert();
+  const step = $('fuelOnBoard')?.closest('.step');
+  if (step && window.lenis) window.lenis.scrollTo(step, { offset: -64, duration: 1.2 });
+  else step?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+document.addEventListener('keydown', (e) => {
+  if (va.root.hidden) return;
+  if (e.key === 'Escape') { e.preventDefault(); closeVerdictAlert(); }
+  else if (e.key === 'Tab') {
+    const f = [va.review, va.change];
+    const i = f.indexOf(document.activeElement);
+    e.preventDefault();
+    f[(i + (e.shiftKey ? -1 : 1) + f.length) % f.length].focus();
+  }
+});
 
 // ---------- plan ----------
 async function plan(e) {

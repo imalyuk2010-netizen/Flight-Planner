@@ -84,6 +84,22 @@
   </div>
 </section>
 
+<!-- Full-screen fuel alert (shown for TIGHT / NO-GO) -->
+<div id="verdictAlert" class="verdict-alert" role="alertdialog" aria-modal="true" aria-labelledby="vaTitle" aria-describedby="vaText" hidden>
+  <div class="va-hazard va-hazard-top" aria-hidden="true"></div>
+  <div class="va-body">
+    <p class="va-route" id="vaRoute"></p>
+    <h2 class="va-title" id="vaTitle"></h2>
+    <p class="va-text" id="vaText"></p>
+    <dl class="va-stats" id="vaStats"></dl>
+    <div class="va-actions">
+      <button type="button" class="va-btn va-btn-primary" id="vaReview">Review the plan</button>
+      <button type="button" class="va-btn va-btn-ghost" id="vaChange">Change fuel or aircraft</button>
+    </div>
+  </div>
+  <div class="va-hazard va-hazard-bottom" aria-hidden="true"></div>
+</div>
+
 <div id="globalAlert" class="alert alert-error global-alert" hidden></div>
 
 <!-- ================= PLANNER: one full page per input ================= -->
